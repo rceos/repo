@@ -11,7 +11,7 @@ st.set_page_config(layout="wide", page_title="Simulador de Cartão - Login")
 # Access secrets.toml via st.secrets
 # USERS = st.secrets["users"].to_dict() # This converts the section to a dictionary
 # If you have keys with spaces in secrets.toml (e.g., "João Paulo"), you might need to iterate
-# USERS = {k.replace('_', ' '): v for k, v in st.secrets["users"].items()}
+USERS = {k.replace('_', ' '): v for k, v in st.secrets["users"].items()}
 
 
 # --- 2. Função de Carregamento das Taxas (Mantida) ---
