@@ -17,16 +17,16 @@ USERS = {k.replace('_', ' '): v for k, v in st.secrets["users"].items()}
 # --- 2. Função de Carregamento das Taxas (Mantida) ---
 csv_files = {
     "Pag Seguro": {
-        "Visa": "dataset\Maquina 1 - Visa.CSV",
-        "Master": "dataset\Maquina 1 - Master.CSV",
-        "Diners": "dataset\Maquina 1 - Diners.CSV",
-        "Demais": "dataset\Maquina 1 - Demais.CSV",
-        "Link": "dataset\Maquina 1 - Link.CSV",
+        "Visa": "dataset/Maquina 1 - Visa.CSV",
+        "Master": "dataset/Maquina 1 - Master.CSV",
+        "Diners": "dataset/Maquina 1 - Diners.CSV",
+        "Demais": "dataset/Maquina 1 - Demais.CSV",
+        "Link": "dataset/Maquina 1 - Link.CSV",
     },
     "Infinity": {
-        "Visa": "dataset\Maquina 2 - Visa.CSV",
-        "Master": "dataset\Maquina 2 - Master.CSV",
-        "Demais": "dataset\Maquina 2 - Demais.CSV",
+        "Visa": "dataset/Maquina 2 - Visa.CSV",
+        "Master": "dataset/Maquina 2 - Master.CSV",
+        "Demais": "dataset/Maquina 2 - Demais.CSV",
     }
 }
 
