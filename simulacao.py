@@ -30,37 +30,37 @@ csv_files = {
     }
 }
 
-def load_rates():
-    all_loaded_rates = {
+def carregar_taxas():
+    taxas_carregadas = {
         "Pag Seguro": {},
         "Infinity": {}
     }
     has_error = False
-    for machine, brands in csv_files.items():
-        for brand, file_path in brands.items():
+    for machine, bandeiras in csv_files.items():
+        for bandeira, file_path in bandeiras.items():
             try:
                 df = pd.read_csv(file_path, delimiter=';', encoding='latin1')
                 df.columns = ['Parcelas', 'Taxa']
                 df['Parcelas'] = df['Parcelas'].astype(int)
                 df['Taxa'] = df['Taxa'].astype(str).str.replace('%', '', regex=False).str.replace(',', '.', regex=False).astype(float)
-                all_loaded_rates[machine][brand] = df.set_index('Parcelas')['Taxa'].to_dict()
+                taxas_carregadas[machine][bandeira] = df.set_index('Parcelas')['Taxa'].to_dict()
             except FileNotFoundError:
                 st.error(f"Erro: Arquivo '{file_path}' não encontrado. Verifique se os arquivos CSV estão na mesma pasta do script.")
                 has_error = True
             except Exception as e:
                 st.error(f"Erro ao carregar o arquivo '{file_path}': {e}")
                 has_error = True
-    return all_loaded_rates if not has_error else None
+    return taxas_carregadas if not has_error else None
 
 # Carrega as taxas uma vez e armazena no session_state para evitar recarregar a cada interação
 if 'loaded_rates' not in st.session_state:
-    st.session_state.loaded_rates = load_rates()
+    st.session_state.loaded_rates = carregar_taxas()
 
 if st.session_state.loaded_rates is None:
     st.warning("Não foi possível carregar todas as taxas. Corrija os erros de arquivo para continuar.")
     st.stop()
 
-rates = st.session_state.loaded_rates
+taxas = st.session_state.loaded_rates
 
 # --- 3. Função da Página de Login ---
 def login_page():
@@ -191,50 +191,50 @@ def main_simulator_app():
                 st.error("Por favor, digite um valor numérico válido para a venda.")
                 amount = None
 
-        available_brands = sorted(list(set(list(rates.get('Pag Seguro', {}).keys()) + list(rates.get('Infinity', {}).keys()))))
-        display_brands = ['-- Selecione uma bandeira --'] + available_brands
+        bandeiras_disponiveis = sorted(list(set(list(rates.get('Pag Seguro', {}).keys()) + list(rates.get('Infinity', {}).keys()))))
+        display_bandeiras = ['-- Selecione uma bandeira --'] + bandeiras_disponiveis
 
-        brand_selection = st.selectbox("💳 **Bandeira do Cartão**", display_brands, key="brand_selector")
+        bandeira_selecionada = st.selectbox("💳 **Bandeira do Cartão**", display_bandeiras, key="bandeira_selector")
 
-        if brand_selection == '-- Selecione uma bandeira --':
-            brand = "N/A"
+        if bandeira_selecionada == '-- Selecione uma bandeira --':
+            bandeira = "N/A"
         else:
-            brand = brand_selection
+            bandeira = bandeira_selecionada
 
-        if brand != "N/A":
-            m1_installments = list(rates.get('Pag Seguro', {}).get(brand, {}).keys())
-            m2_installments = list(rates.get('Infinity', {}).get(brand, {}).keys())
-            all_available_installments = sorted(list(set(m1_installments + m2_installments)))
+        if bandeira != "N/A":
+            m1_parcelas = list(taxas.get('Pag Seguro', {}).get(bandeira, {}).keys())
+            m2_parcelas = list(taxas.get('Infinity', {}).get(bandeira, {}).keys())
+            parcelas_disponiveis = sorted(list(set(m1_parcelas + m2_parcelas)))
         else:
-            all_available_installments = []
+            parcelas_disponiveis = []
 
-        if not all_available_installments:
-            installments = st.selectbox("🔢 **Número de Parcelas**", ["N/A"], disabled=True, key="installments_selector_disabled")
+        if not parcelas_disponiveis:
+            parcelas = st.selectbox("🔢 **Número de Parcelas**", ["N/A"], disabled=True, key="installments_selector_disabled")
         else:
-            default_installment_value = 1 if 1 in all_available_installments else all_available_installments[0]
-            installments = st.selectbox(
+            default_parcela_value = 1 if 1 in parcelas_disponiveis else parcelas_disponiveis[0]
+            parcelas = st.selectbox(
                 "🔢 **Número de Parcelas**",
-                all_available_installments,
-                index=all_available_installments.index(default_installment_value),
+                parcelas_disponiveis,
+                index=parcelas_disponiveis.index(default_parcela_value),
                 key="installments_selector_enabled"
             )
         
         st.session_state.selected_amount = amount
-        st.session_state.selected_brand = brand
-        st.session_state.selected_installments = installments
+        st.session_state.selected_bandeira = bandeira
+        st.session_state.selected_parcelas = parcelas
 
         with st.form("simulation_submit_form"):
             submit_simulation = st.form_submit_button("Simular") # O CSS acima irá estilizar este botão
 
-    def calculate_machine_data(valor_venda, brand_val, qtd_parcela, machine_rates_data):
-        if brand_val == "N/A" or qtd_parcela == "N/A" or valor_venda is None or valor_venda <= 0:
+    def calculate_machine_data(valor_venda, bandeira_valor, qtd_parcela, machine_rates_data):
+        if bandeira_valor == "N/A" or qtd_parcela == "N/A" or valor_venda is None or valor_venda <= 0:
             return "N/A", "N/A", "N/A", "N/A", "N/A"
 
-        rates_for_brand = machine_rates_data.get(brand_val, {})
-        if not rates_for_brand or qtd_parcela not in rates_for_brand:
+        rates_for_bandeira = machine_rates_data.get(bandeira_valor, {})
+        if not rates_for_bandeira or qtd_parcela not in rates_for_bandeira:
             return "N/A", "N/A", "N/A", "N/A", "N/A"
 
-        taxa = rates_for_brand[qtd_parcela]
+        taxa = rates_for_bandeira[qtd_parcela]
 
         valor_final_venda = valor_venda * (1 + (taxa / 100))
         valor_liquido_venda = valor_venda # O valor líquido que o vendedor recebe é o valor original
@@ -245,39 +245,39 @@ def main_simulator_app():
 
     if submit_simulation:
         final_amount = st.session_state.selected_amount
-        final_brand = st.session_state.selected_brand
-        final_installments = st.session_state.selected_installments
+        final_bandeira = st.session_state.selected_bandeira
+        parcelas_finais = st.session_state.selected_parcelas
 
-        if final_amount is not None and final_amount > 0 and final_brand != "N/A" and final_installments != "N/A":
+        if final_amount is not None and final_amount > 0 and final_bandeira != "N/A" and parcelas_finais != "N/A":
             st.markdown("<h4 style='text-align: center;'>Resultados da Simulação</h4>", unsafe_allow_html=True)
             
             col1_results, col2_results = st.columns(2) 
 
-            m1_total_client, m1_installment_client, m1_net_seller, m1_transaction_fees, m1_tax_rate = \
-                calculate_machine_data(final_amount, final_brand, final_installments, rates.get('Pag Seguro', {}))
+            m1_total_cliente, m1_parcela_cliente, m1_valor_liquido, m1_transaction_fees, m1_tax_rate = \
+                calculate_machine_data(final_amount, final_bandeira, parcelas_finais, taxas.get('Pag Seguro', {}))
 
             with col1_results:
                 st.markdown("<h3 style='text-align: center; color: #F6DF44; font-weight: bolder;'>PagBank</h3>", unsafe_allow_html=True)
                 st.markdown("---")
-                if m1_total_client != "N/A":
-                    st.metric(label="Valor Recebido (EOS)", value=f"R$ {m1_net_seller:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                    st.metric(label="Valor da Venda (Cliente)", value=f"R$ {m1_total_client:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                    st.metric(label="Valor da Parcela (Cliente)", value=f"R$ {m1_installment_client:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                if m1_total_cliente != "N/A":
+                    st.metric(label="Valor Recebido (EOS)", value=f"R$ {m1_valor_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.metric(label="Valor da Venda (Cliente)", value=f"R$ {m1_total_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.metric(label="Valor da Parcela (Cliente)", value=f"R$ {m1_parcela_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     st.metric(label="Encargos (Cliente)", value=f"R$ {m1_transaction_fees:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     # st.metric(label="Taxa Aplicada", value=f"{m1_tax_rate:,.2f}%".replace(",", "X").replace(".", ",").replace("X", "."))
                 else:
                     st.warning("Pag Seguro: Dados não disponíveis para esta bandeira/parcelamento.")
 
-            m2_total_client, m2_installment_client, m2_net_seller, m2_transaction_fees, m2_tax_rate = \
-                calculate_machine_data(final_amount, final_brand, final_installments, rates.get('Infinity', {}))
+            m2_total_cliente, m2_parcela_cliente, m2_valor_liquido, m2_transaction_fees, m2_tax_rate = \
+                calculate_machine_data(final_amount, final_bandeira, parcelas_finais, taxas.get('Infinity', {}))
 
             with col2_results:
                 st.markdown("<h3 style='text-align: center; color: #17EC2A; font-weight: bolder;'>InfinitePay</h3>", unsafe_allow_html=True)
                 st.markdown("---")
-                if m2_total_client != "N/A":
-                    st.metric(label="Valor Recebido (EOS)", value=f"R$ {m2_net_seller:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                    st.metric(label="Valor da Venda (Cliente)", value=f"R$ {m2_total_client:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                    st.metric(label="Valor da Parcela (Cliente)", value=f"R$ {m2_installment_client:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                if m2_total_cliente != "N/A":
+                    st.metric(label="Valor Recebido (EOS)", value=f"R$ {m2_valor_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.metric(label="Valor da Venda (Cliente)", value=f"R$ {m2_total_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.metric(label="Valor da Parcela (Cliente)", value=f"R$ {m2_parcela_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     st.metric(label="Encargos (Cliente)", value=f"R$ {m2_transaction_fees:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     # st.metric(label="Taxa Aplicada", value=f"{m2_tax_rate:,.2f}%".replace(",", "X").replace(".", ",").replace("X", "."))
                 else:
