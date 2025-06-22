@@ -79,7 +79,7 @@ def login_page():
                     st.session_state.logged_in = True
                     st.session_state.username = username
                     st.success(f"Bem-vindo(a), {username}!")
-                    st.return()
+                    st.rerun()
                 else:
                     st.error("Usuário ou senha incorretos.")
 
