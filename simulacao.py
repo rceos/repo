@@ -5,7 +5,7 @@ import io
 
 # --- REMOVIDO: INJEÇÃO GLOBAL DE CSS PARA OCULTAR BOTÕES DE SPINNER (não é mais necessário com st.text_input) ---
 
-st.set_page_config(layout="wide", page_title="Simulador de Cartão - Login")
+st.set_page_config(layout="wide", page_title="Simulador de Cartão - EOS")
 
 # --- 1. Credenciais de Usuário (Carregadas de st.secrets) ---
 # Access secrets.toml via st.secrets
