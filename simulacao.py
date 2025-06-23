@@ -27,6 +27,7 @@ csv_files = {
         "Visa": "dataset/Maquina 2 - Visa.CSV",
         "Master": "dataset/Maquina 2 - Master.CSV",
         "Demais": "dataset/Maquina 2 - Demais.CSV",
+        "Link": "dataset/Maquina 2 - Link.CSV",
     }
 }
 
