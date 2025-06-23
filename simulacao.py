@@ -191,7 +191,7 @@ def main_simulator_app():
                 st.error("Por favor, digite um valor numérico válido para a venda.")
                 amount = None
 
-        bandeiras_disponiveis = sorted(list(set(list(rates.get('Pag Seguro', {}).keys()) + list(rates.get('Infinity', {}).keys()))))
+        bandeiras_disponiveis = sorted(list(set(list(taxas.get('Pag Seguro', {}).keys()) + list(taxas.get('Infinity', {}).keys()))))
         display_bandeiras = ['-- Selecione uma bandeira --'] + bandeiras_disponiveis
 
         bandeira_selecionada = st.selectbox("💳 **Bandeira do Cartão**", display_bandeiras, key="bandeira_selector")
