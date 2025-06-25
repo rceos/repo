@@ -369,7 +369,7 @@ def main_simulator_app():
             if m1_parcela != "N/A":
                 row["PagBank"] = f"R$ {m1_parcela:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             else:
-                row["PagBank"] = "-"
+                row["PagBank"] = "---"
             
             # Calcular para InfinitePay
             m2_total, m2_parcela, m2_liquido, m2_encargos, m2_taxa = calculate_machine_data(
@@ -379,7 +379,7 @@ def main_simulator_app():
             if m2_parcela != "N/A":
                 row["InfinitePay"] = f"R$ {m2_parcela:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             else:
-                row["InfinitePay"] = "-"
+                row["InfinitePay"] = "---"
             
             table_data.append(row)
         
@@ -431,32 +431,34 @@ def main_simulator_app():
                         st.warning("InfinitePay: Dados não disponíveis para esta bandeira/parcelamento.")
             
             elif final_display_mode == "Tabela":
-                # Modo Tabela - Nova funcionalidade com largura reduzida
+
                 if parcelas_disponiveis:
                     table_data = generate_comparison_table(final_amount, final_bandeira, parcelas_disponiveis)
-                    
+                                
                     if table_data:
                         # Criar colunas para reduzir largura em 1/3 (aproximadamente 67% da largura)
                         table_col_left, table_col_center, table_col_right = st.columns([0.325, 0.35, 0.325])
-                        
+                                    
                         with table_col_center:
                             # Criar DataFrame para exibição
                             df_comparison = pd.DataFrame(table_data)
-                            
+                                        
                             # Exibir informações gerais
                             st.info(f"**Valor da venda:** R$ {final_amount:,.2f} | **Bandeira:** {final_bandeira}".replace(",", "X").replace(".", ",").replace("X", "."))
                             
-                            # Exibir tabela usando st.dataframe para melhor visualização
-                            # st.markdown("### 📋 Comparação de Parcelas")
+                            # Calcular altura baseada no número de linhas (35px por linha + 50px para cabeçalho)
+                            altura_tabela = len(df_comparison) * 35 + 50
+                            
                             st.dataframe(
                                 df_comparison,
                                 use_container_width=True,
                                 hide_index=True,
+                                height=altura_tabela,  # Altura calculada dinamicamente
                                 column_config={
-                                    "Parcela": st.column_config.NumberColumn(
+                                    "Parcela": st.column_config.TextColumn(
                                         "Parcelas",
-                                        help="Número de parcelas",
-                                        format="%d"
+                                        help="Número de parcelas"
+                                                            
                                     ),
                                     "PagBank": st.column_config.TextColumn(
                                         "PagBank",
@@ -468,22 +470,17 @@ def main_simulator_app():
                                     )
                                 }
                             )
-                            
+                                        
                             # Adicionar observações
-                            st.markdown("**Observações:**")
-                            st.markdown("- Os valores mostrados são o que o **cliente pagará** por parcela")
-                            st.markdown("- O valor recebido pela EOS sempre será o valor original da venda")
-                            st.markdown("- Campos com '-' indicam que a opção não está disponível para esta bandeira")
-                    else:
-                        st.warning("Não foi possível gerar a tabela de comparação.")
-                else:
-                    st.warning("Nenhuma opção de parcelamento disponível para esta bandeira.")
+                            st.markdown("<h5 style='text-align: center;> **Observações:**</h5>", unsafe_allow_html=True)
+                            st.markdown("<p style='text-align: left;'> • Os valores mostrados são o que o <b>cliente pagará</b> por parcela </p>", unsafe_allow_html=True)
+                            st.markdown("<p style='text-align: left;'> • Campos com '---' indicam que a opção não está disponível para esta bandeira </p>", unsafe_allow_html=True)
+																																 
         else:
             # Criar colunas para centralizar e reduzir largura do info
             warning_col_left, warning_col_center, warning_col_right = st.columns([0.25, 0.5, 0.25])
             with warning_col_center:
                 st.warning("Por favor, preencha todos os campos corretamente (Valor e Bandeira) antes de simular.")
-
 
     
     st.markdown("---")
