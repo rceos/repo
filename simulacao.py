@@ -44,7 +44,7 @@ def carregar_taxas():
         for bandeira, file_path in bandeiras.items():
             try:
                 # Carregamento e processamento do CSV
-                df = pd.read_csv(file_path, delimiter=';', encoding='latin1')
+                df = pd.read_csv(file_path, sep=';', encoding='latin1')
                 df.columns = ['Parcelas', 'Taxa']
                 df['Parcelas'] = df['Parcelas'].astype(int)
                 df['Taxa'] = df['Taxa'].astype(str).str.replace('%', '', regex=False).str.replace(',', '.', regex=False).astype(float)
@@ -343,7 +343,8 @@ def main_simulator_app():
         
         # Cálculos financeiros
         taxa = rates_for_bandeira[qtd_parcela]
-        valor_final_venda = valor_venda * (1 + (taxa / 100))
+        valor_final_venda = valor_venda / (1 - taxa)
+        
         valor_liquido_venda = valor_venda  # O valor líquido que o vendedor recebe é o valor original
         encargos_da_transacao = valor_final_venda - valor_venda
         parcela_cliente = valor_final_venda / qtd_parcela
