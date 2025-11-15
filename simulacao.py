@@ -12,20 +12,23 @@ st.set_page_config(layout="wide", page_title="Simulador de Cartão - EOS")
 USERS = {k.replace('_', ' '): v for k, v in st.secrets["users"].items()}
 
 # Mapeamento de arquivos de taxas por máquina e bandeira
-# Estrutura permite fácil manutenção e expansão
 csv_files = {
-    "Pag Seguro": {
-        "Visa": "dataset/Maquina 1 - Visa.CSV",
-        "Master": "dataset/Maquina 1 - Master.CSV",
-        "Diners": "dataset/Maquina 1 - Diners.CSV",
-        "Demais": "dataset/Maquina 1 - Demais.CSV",
-        "Link": "dataset/Maquina 1 - Link.CSV",
+    "Pagbank": {
+        "Visa": "dataset/Maquina_Pagbank - Visa.CSV",
+        "Master": "dataset/Maquina_Pagbank - Master.CSV",
+        "Diners": "dataset/Maquina_Pagbank - Diners.CSV",
+        "Demais": "dataset/Maquina_Pagbank - Demais.CSV",
     },
-    "Infinity": {
-        "Visa": "dataset/Maquina 2 - Visa.CSV",
-        "Master": "dataset/Maquina 2 - Master.CSV",
-        "Demais": "dataset/Maquina 2 - Demais.CSV",
-        "Link": "dataset/Maquina 2 - Link.CSV",
+    "Cielo": {
+        "Visa": "dataset/Maquina_Cielo - Visa.CSV",
+        "Master": "dataset/Maquina_Cielo - Master.CSV",
+        "Link de Pagamento": "dataset/Maquina_Cielo - Link.CSV",
+    },
+    "Listo": {
+        "Visa": "dataset/Maquina_Listo - Visa.CSV",
+        "Master": "dataset/Maquina_Listo - Master.CSV",
+        "Elo": "dataset/Maquina_Listo - Elo.CSV",
+        "Link de Pagamento": "dataset/Maquina_Listo - Link.CSV",
     }
 }
 
@@ -34,8 +37,9 @@ csv_files = {
 def carregar_taxas():
     # Dicionário para armazenar taxas processadas
     taxas_carregadas = {
-        "Pag Seguro": {},
-        "Infinity": {}
+        "Pagbank": {},
+        "Cielo": {},
+        "Listo": {}
     }
     has_error = False
     
@@ -51,7 +55,7 @@ def carregar_taxas():
                 taxas_carregadas[machine][bandeira] = df.set_index('Parcelas')['Taxa'].to_dict()
             except FileNotFoundError:
                 # Log de erro para arquivo não encontrado
-                st.error(f"Erro: Arquivo '{file_path}' não encontrado. Verifique se os arquivos CSV estão na mesma pasta do script.")
+                st.error(f"Erro: Arquivo '{file_path}' não encontrado. Verifique se os arquivos CSV estão disponíveis.")
                 has_error = True
             except Exception as e:
                 # Captura de erros genéricos durante processamento
@@ -269,7 +273,11 @@ def main_simulator_app():
                 amount = None
         
         # Seleção dinâmica de bandeiras disponíveis
-        bandeiras_disponiveis = sorted(list(set(list(taxas.get('Pag Seguro', {}).keys()) + list(taxas.get('Infinity', {}).keys()))))
+        bandeiras_disponiveis = sorted(list(set(
+            list(taxas.get('Pagbank', {}).keys()) + 
+            list(taxas.get('Cielo', {}).keys()) +
+            list(taxas.get('Listo', {}).keys())
+        )))
         
         display_bandeiras = ['-- Selecione uma bandeira --'] + bandeiras_disponiveis
         bandeira_selecionada = st.selectbox("💳 **Bandeira do Cartão**", display_bandeiras, key="bandeira_selector")
@@ -285,12 +293,12 @@ def main_simulator_app():
 
 
         # Coluna central maior para o radio button
-        col1, col2, col3 = st.columns([1, 2, 1])
+        col1, col2, col3 = st.columns([0.75, 2.5, 0.75])
 
         with col2:
             display_mode = st.radio(
-                "",
-                ["Simples", "Tabela"],
+                "Modo de Exibição",
+                ["Tabela", "Única"],
                 horizontal=True,
                 key="display_mode",
                 label_visibility="collapsed",
@@ -300,16 +308,17 @@ def main_simulator_app():
 
         # Lógica para parcelas baseada no modo selecionado
         if bandeira != "N/A":
-            m1_parcelas = list(taxas.get('Pag Seguro', {}).get(bandeira, {}).keys())
-            m2_parcelas = list(taxas.get('Infinity', {}).get(bandeira, {}).keys())
-            parcelas_disponiveis = sorted(list(set(m1_parcelas + m2_parcelas)))
+            m1_parcelas = list(taxas.get('Listo', {}).get(bandeira, {}).keys())
+            m2_parcelas = list(taxas.get('Cielo', {}).get(bandeira, {}).keys())
+            m3_parcelas = list(taxas.get('Pagbank', {}).get(bandeira, {}).keys())
+            parcelas_disponiveis = sorted(list(set(m1_parcelas + m2_parcelas + m3_parcelas)))
         else:
             parcelas_disponiveis = []
         
         # Controle de parcelas baseado no modo de exibição
-        if display_mode == "Simples":
+        if display_mode == "Única":
             if not parcelas_disponiveis:
-                parcelas = st.selectbox("🔢 **Número de Parcelas**", ["N/A"], disabled=True, key="installments_selector_disabled")
+                parcelas = st.selectbox("🔢 **Número de Parcelas**", ["Selecione um valor"], disabled=True, key="installments_selector_disabled")
             else:
                 default_parcela_value = 1 if 1 in parcelas_disponiveis else parcelas_disponiveis[0]
                 parcelas = st.selectbox(
@@ -362,25 +371,34 @@ def main_simulator_app():
         for parcela in parcelas_disponiveis:
             row = {"Parcela": parcela}
             
-            # Calcular para PagBank
+            # Calcular para Listo
             m1_total, m1_parcela, m1_liquido, m1_encargos, m1_taxa = calculate_machine_data(
-                valor_venda, bandeira, parcela, taxas.get('Pag Seguro', {})
+                valor_venda, bandeira, parcela, taxas.get('Listo', {})
             )
             
             if m1_parcela != "N/A":
-                row["PagBank"] = f"R$ {m1_parcela:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                row["Listo"] = f"R$ {m1_parcela:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             else:
-                row["PagBank"] = "---"
+                row["Listo"] = "---"
             
-            # Calcular para InfinitePay
+          
             m2_total, m2_parcela, m2_liquido, m2_encargos, m2_taxa = calculate_machine_data(
-                valor_venda, bandeira, parcela, taxas.get('Infinity', {})
+                valor_venda, bandeira, parcela, taxas.get('Cielo', {})
             )
             
             if m2_parcela != "N/A":
-                row["InfinitePay"] = f"R$ {m2_parcela:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                row["Cielo"] = f"R$ {m2_parcela:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             else:
-                row["InfinitePay"] = "---"
+                row["Cielo"] = "---"
+
+            m3_total, m3_parcela, m3_liquido, m3_encargos, m3_taxa = calculate_machine_data(
+                valor_venda, bandeira, parcela, taxas.get('Pagbank', {})
+            )
+            
+            if m3_parcela != "N/A":
+                row["Pagbank"] = f"R$ {m3_parcela:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            else:
+                row["Pagbank"] = "---"
             
             table_data.append(row)
         
@@ -398,16 +416,17 @@ def main_simulator_app():
         if final_amount is not None and final_amount > 0 and final_bandeira != "N/A":
             st.markdown("<h3 style='text-align: center;'>Resultados da Simulação</h3>", unsafe_allow_html=True)
             
-            if final_display_mode == "Simples" and parcelas_finais != "N/A":
-                # Modo Simples - Exibição original
-                col1_results, col2_results, col3_results, col4_results = st.columns(4)
+            if final_display_mode == "Única" and parcelas_finais != "N/A":
+                # Modo Única - Exibição original
+                col1_results, col2_results, col3_results = st.columns(3)
                 
                 # Cálculo para diferentes máquinas de cartão
                 m1_total_cliente, m1_parcela_cliente, m1_valor_liquido, m1_transaction_fees, m1_tax_rate = \
-                    calculate_machine_data(final_amount, final_bandeira, parcelas_finais, taxas.get('Pag Seguro', {}))
+                    calculate_machine_data(final_amount, final_bandeira, parcelas_finais, taxas.get('Listo', {}))
                 
-                with col2_results:
-                    st.markdown("<h3 style='text-align: center; color: #F6DF44; font-weight: bolder;'>PagBank</h3>", unsafe_allow_html=True)
+                # Cálculo para Listo
+                with col1_results:
+                    st.markdown("<h3 style='text-align: center; color: #FFD103; font-weight: bolder;'>Listo</h3>", unsafe_allow_html=True) # <<< MUDANÇA: Título (cor azul como exemplo)
                     st.markdown("---")
                     if m1_total_cliente != "N/A":
                         st.metric(label="Valor Recebido (EOS)", value=f"R$ {m1_valor_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -415,13 +434,14 @@ def main_simulator_app():
                         st.metric(label="Valor da Parcela (Cliente)", value=f"R$ {m1_parcela_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                         st.metric(label="Encargos (Cliente)", value=f"R$ {m1_transaction_fees:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     else:
-                        st.warning("PagBank: Dados não disponíveis para esta bandeira/parcelamento.")
-                
+                        st.warning("Listo: Dados não disponíveis para esta bandeira/parcelamento.")
+
                 m2_total_cliente, m2_parcela_cliente, m2_valor_liquido, m2_transaction_fees, m2_tax_rate = \
-                    calculate_machine_data(final_amount, final_bandeira, parcelas_finais, taxas.get('Infinity', {}))
+                    calculate_machine_data(final_amount, final_bandeira, parcelas_finais, taxas.get('Cielo', {}))
                 
-                with col3_results:
-                    st.markdown("<h3 style='text-align: center; color: #17EC2A; font-weight: bolder;'>InfinitePay</h3>", unsafe_allow_html=True)
+                # Cálculo para Cielo
+                with col2_results:
+                    st.markdown("<h3 style='text-align: center; color: #0E749C; font-weight: bolder;'>Cielo</h3>", unsafe_allow_html=True) # <<< MUDANÇA: Título
                     st.markdown("---")
                     if m2_total_cliente != "N/A":
                         st.metric(label="Valor Recebido (EOS)", value=f"R$ {m2_valor_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -429,7 +449,23 @@ def main_simulator_app():
                         st.metric(label="Valor da Parcela (Cliente)", value=f"R$ {m2_parcela_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                         st.metric(label="Encargos (Cliente)", value=f"R$ {m2_transaction_fees:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     else:
-                        st.warning("InfinitePay: Dados não disponíveis para esta bandeira/parcelamento.")
+                        st.warning("Cielo: Dados não disponíveis para esta bandeira/parcelamento.")
+
+                # Cálculo para diferentes máquinas de cartão
+                m3_total_cliente, m3_parcela_cliente, m3_valor_liquido, m3_transaction_fees, m3_tax_rate = \
+                    calculate_machine_data(final_amount, final_bandeira, parcelas_finais, taxas.get('Pagbank', {}))
+                
+                # Cálculo para Pagbank
+                with col3_results:
+                    st.markdown("<h3 style='text-align: center; color: #F5DE3E; font-weight: bolder;'>Pagbank</h3>", unsafe_allow_html=True) # <<< MUDANÇA: Título
+                    st.markdown("---")
+                    if m3_total_cliente != "N/A":
+                        st.metric(label="Valor Recebido (EOS)", value=f"R$ {m3_valor_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                        st.metric(label="Valor da Venda (Cliente)", value=f"R$ {m3_total_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                        st.metric(label="Valor da Parcela (Cliente)", value=f"R$ {m3_parcela_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                        st.metric(label="Encargos (Cliente)", value=f"R$ {m3_transaction_fees:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    else:
+                        st.warning("Pagbank: Dados não disponíveis para esta bandeira/parcelamento.")
             
             elif final_display_mode == "Tabela":
 
