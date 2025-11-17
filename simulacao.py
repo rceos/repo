@@ -191,13 +191,6 @@ def main_simulator_app():
                 width: 100%;
             }
             
-            /*-------------*/
-            div[data-testid="stMarkdownContainer"] > button > div {
-                display: flex;
-                justify-content: center;
-                width: 50%;
-            }
-            
             /* Centralizar radio buttons horizontais */
             div[data-testid="stRadio"] > div[role="radiogroup"] {
                 display: flex;
@@ -208,26 +201,57 @@ def main_simulator_app():
 
             div[data-testid="stRadio"] > div[role="radiogroup"] > label {
                 margin: 0 10px;
+            }    
+            
+            /*-------------*/
+            div[data-testid="stMarkdownContainer"] > button > div {
+                display: flex;
+                justify-content: center;
+                width: 50%;
             }
-
-
-            /* Estilo para a tabela de comparação */
-            .comparison-table {
-                border-collapse: collapse;
+            
+            /* CSS para a tabela HTML */
+            .styled-table {
                 width: 100%;
-                margin: 20px 0;
+                border-collapse: collapse;
+                color: #FAFAFA; /* Texto claro (para modo escuro) */
             }
-            .comparison-table th, .comparison-table td {
-                border: 1px solid #ddd;
-                padding: 8px;
+            .styled-table th, .styled-table td {
+                border: 1px solid #333; /* Borda mais escura */
+                padding: 6px 10px;
+                position: relative; /* Necessário para o alinhamento dividido */
+                min-width: 100px;
+            }
+            .styled-table th {
+                background-color: #262730; /* Fundo do cabeçalho escuro */
+                text-align: center; /* Alinha cabeçalhos ao centro por padrão */
+            }
+            
+            /* Alinha a coluna "Parcela" (cabeçalho e dados) ao centro */
+            .styled-table th:first-child,
+            .styled-table td:first-child {
                 text-align: center;
+                min-width: 50px;
             }
-            .comparison-table th {
-                background-color: #f2f2f2;
-                font-weight: bold;
+            
+            /* Células de valor (todas menos a primeira) */
+            .styled-table td:not(:first-child) {
+                text-align: right; /* Alinha o "---" à direita */
             }
-            .comparison-table tr:nth-child(even) {
-                background-color: #f9f9f9;
+
+            /* O "R$" */
+            .currency {
+                position: absolute;
+                left: 10px; /* Posição da esquerda */
+                top: 6px;
+                padding-right: 5px; /* Espaço entre R$ e o número */
+                color: #AAA; /* Cor mais suave para o R$ */
+            }
+
+            /* O valor numérico */
+            .amount {
+                display: block;
+                text-align: right; /* Alinha o número à direita */
             }
                 
         </style>
@@ -289,11 +313,10 @@ def main_simulator_app():
         
 
         # Centralização do modo de exibição
-        st.markdown("<p style='text-align: center; font-weight: bold; margin-bottom: 10px;'><strong>Modo de Exibição</strong></p>", unsafe_allow_html=True)
-
+        # st.markdown("<p style='text-align: center; font-weight: bold; margin-bottom: 10px;'><strong>Modo de Exibição</strong></p>", unsafe_allow_html=True)
 
         # Coluna central maior para o radio button
-        col1, col2, col3 = st.columns([0.75, 2.5, 0.75])
+        col1, col2, col3 = st.columns([1, 2, 1])
 
         with col2:
             display_mode = st.radio(
@@ -304,7 +327,6 @@ def main_simulator_app():
                 label_visibility="collapsed",
                 width = "stretch"
             )
-
 
         # Lógica para parcelas baseada no modo selecionado
         if bandeira != "N/A":
@@ -352,7 +374,7 @@ def main_simulator_app():
         
         # Cálculos financeiros
         taxa = rates_for_bandeira[qtd_parcela]
-        valor_final_venda = valor_venda / (1 - taxa)
+        valor_final_venda = valor_venda / (1 / (1 + taxa))
         
         valor_liquido_venda = valor_venda  # O valor líquido que o vendedor recebe é o valor original
         encargos_da_transacao = valor_final_venda - valor_venda
@@ -371,34 +393,34 @@ def main_simulator_app():
         for parcela in parcelas_disponiveis:
             row = {"Parcela": parcela}
             
+            # --- Função helper para criar o HTML da célula ---
+            def format_cell(value):
+                if value != "N/A":
+                    # Formata o número com vírgula
+                    formatted_value = f"{value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    # Retorna o HTML com R$ à esquerda e valor à direita
+                    return f"<span class='currency'></span><span class='amount'>{formatted_value}</span>"
+                else:
+                    # Retorna "---" alinhado à direita
+                    return "<span class='amount'>---</span>"
+            # --------------------------------------------------
+
             # Calcular para Listo
             m1_total, m1_parcela, m1_liquido, m1_encargos, m1_taxa = calculate_machine_data(
                 valor_venda, bandeira, parcela, taxas.get('Listo', {})
             )
-            
-            if m1_parcela != "N/A":
-                row["Listo"] = f"R$ {m1_parcela:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            else:
-                row["Listo"] = "---"
+            row["Listo"] = format_cell(m1_parcela)
             
           
             m2_total, m2_parcela, m2_liquido, m2_encargos, m2_taxa = calculate_machine_data(
                 valor_venda, bandeira, parcela, taxas.get('Cielo', {})
             )
-            
-            if m2_parcela != "N/A":
-                row["Cielo"] = f"R$ {m2_parcela:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            else:
-                row["Cielo"] = "---"
+            row["Cielo"] = format_cell(m2_parcela)
 
             m3_total, m3_parcela, m3_liquido, m3_encargos, m3_taxa = calculate_machine_data(
                 valor_venda, bandeira, parcela, taxas.get('Pagbank', {})
             )
-            
-            if m3_parcela != "N/A":
-                row["Pagbank"] = f"R$ {m3_parcela:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            else:
-                row["Pagbank"] = "---"
+            row["Pagbank"] = format_cell(m3_parcela)
             
             table_data.append(row)
         
@@ -426,7 +448,7 @@ def main_simulator_app():
                 
                 # Cálculo para Listo
                 with col1_results:
-                    st.markdown("<h3 style='text-align: center; color: #FFD103; font-weight: bolder;'>Listo</h3>", unsafe_allow_html=True) # <<< MUDANÇA: Título (cor azul como exemplo)
+                    st.markdown("<h3 style='text-align: center; color: #FFD103; font-weight: bolder;'>Listo</h3>", unsafe_allow_html=True) 
                     st.markdown("---")
                     if m1_total_cliente != "N/A":
                         st.metric(label="Valor Recebido (EOS)", value=f"R$ {m1_valor_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -441,7 +463,7 @@ def main_simulator_app():
                 
                 # Cálculo para Cielo
                 with col2_results:
-                    st.markdown("<h3 style='text-align: center; color: #0E749C; font-weight: bolder;'>Cielo</h3>", unsafe_allow_html=True) # <<< MUDANÇA: Título
+                    st.markdown("<h3 style='text-align: center; color: #0E749C; font-weight: bolder;'>Cielo</h3>", unsafe_allow_html=True) 
                     st.markdown("---")
                     if m2_total_cliente != "N/A":
                         st.metric(label="Valor Recebido (EOS)", value=f"R$ {m2_valor_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -457,7 +479,7 @@ def main_simulator_app():
                 
                 # Cálculo para Pagbank
                 with col3_results:
-                    st.markdown("<h3 style='text-align: center; color: #F5DE3E; font-weight: bolder;'>Pagbank</h3>", unsafe_allow_html=True) # <<< MUDANÇA: Título
+                    st.markdown("<h3 style='text-align: center; color: #F5DE3E; font-weight: bolder;'>Pagbank</h3>", unsafe_allow_html=True) 
                     st.markdown("---")
                     if m3_total_cliente != "N/A":
                         st.metric(label="Valor Recebido (EOS)", value=f"R$ {m3_valor_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -483,32 +505,19 @@ def main_simulator_app():
                             # Exibir informações gerais
                             st.info(f"**Valor da venda:** R$ {final_amount:,.2f} | **Bandeira:** {final_bandeira}".replace(",", "X").replace(".", ",").replace("X", "."))
                             
-                            # Calcular altura baseada no número de linhas (35px por linha + 50px para cabeçalho)
-                            altura_tabela = len(df_comparison) * 35 + 50
-                            
-                            st.dataframe(
-                                df_comparison,
-                                use_container_width=True,
-                                hide_index=True,
-                                height=altura_tabela,  # Altura calculada dinamicamente
-                                column_config={
-                                    "Parcela": st.column_config.TextColumn(
-                                        "Parcelas",
-                                        help="Número de parcelas"
-                                                            
-                                    ),
-                                    "PagBank": st.column_config.TextColumn(
-                                        "PagBank",
-                                        help="Valor da parcela no PagBank"
-                                    ),
-                                    "InfinitePay": st.column_config.TextColumn(
-                                        "InfinitePay",
-                                        help="Valor da parcela no InfinitePay"
-                                    )
-                                }
+                            # Converter o DataFrame para HTML com a classe CSS
+                            html_table = df_comparison.to_html(
+                                classes='styled-table', # Usa a classe CSS
+                                border=0,
+                                index=False,     # Não mostra o índice 0,1,2... do pandas
+                                escape=False     # IMPORTANTE: Renderiza o HTML (<span>)
                             )
+                            
+                            # Exibir o HTML da tabela usando st.markdown
+                            st.markdown(html_table, unsafe_allow_html=True)
                                         
                             # Adicionar observações
+                            st.markdown("<br>", unsafe_allow_html=True) # Adiciona um espaço
                             st.markdown("<h5 style='text-align: center;> **Observações:**</h5>", unsafe_allow_html=True)
                             st.markdown("<p style='text-align: left;'> • Os valores mostrados são o que o <b>cliente pagará</b> por parcela </p>", unsafe_allow_html=True)
                             st.markdown("<p style='text-align: left;'> • Campos com '---' indicam que a opção não está disponível para esta bandeira </p>", unsafe_allow_html=True)
