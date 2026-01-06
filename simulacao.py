@@ -1,14 +1,13 @@
-# Importações necessárias para o projeto de simulação de cartão
+# Importações necessárias
 import streamlit as st
 import pandas as pd
 import json
 import io
 
-# Configuração da página: Layout amplo e título identificador
+# Configuração da página
 st.set_page_config(layout="wide", page_title="Simulador de Cartão - EOS")
 
-# Carregamento seguro de credenciais de utilizador
-# Tratamento flexível para nomes com espaços
+# Carregamento seguro de credenciais de usuário
 USERS = {k.replace('_', ' '): v for k, v in st.secrets["users"].items()}
 
 # Mapeamento de ficheiros de taxas por máquina e bandeira
@@ -76,7 +75,7 @@ def login_page():
     login_col_l, login_col_c, login_col_r = st.columns([1, 1, 1])
     with login_col_c:
         with st.form("login_form"):
-            username = st.text_input("Utilizador")
+            username = st.text_input("Usuário")
             password = st.text_input("Senha", type="password")
             if st.form_submit_button("Entrar"):
                 if username in USERS and USERS[username] == password:
@@ -84,10 +83,10 @@ def login_page():
                     st.session_state.username = username
                     st.rerun()
                 else:
-                    st.error("Utilizador ou senha incorretos.")
+                    st.error("Usuário ou senha incorretos.")
 
 def main_simulator_app():
-    # Estilos CSS corrigidos para Temas Light/Dark e alinhamento da tabela
+    # Estilos CSS para Temas Light/Dark e alinhamento da tabela
     st.markdown("""
         <style>
             [data-testid="stSidebar"] { display: none; }
