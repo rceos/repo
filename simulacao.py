@@ -7,11 +7,11 @@ import io
 # Configuração da página: Layout amplo e título identificador
 st.set_page_config(layout="wide", page_title="Simulador de Cartão - EOS")
 
-# Carregamento seguro de credenciais de usuário
+# Carregamento seguro de credenciais de utilizador
 # Tratamento flexível para nomes com espaços
 USERS = {k.replace('_', ' '): v for k, v in st.secrets["users"].items()}
 
-# Mapeamento de arquivos de taxas por máquina e bandeira
+# Mapeamento de ficheiros de taxas por máquina e bandeira
 csv_files = {
     "Pagbank": {
         "Visa": "dataset/Maquina_Pagbank - Visa.CSV",
@@ -33,9 +33,7 @@ csv_files = {
 }
 
 # Função central de carregamento de taxas
-# Implementa tratamento robusto de erros e padronização de dados
 def carregar_taxas():
-    # Dicionário para armazenar taxas processadas
     taxas_carregadas = {
         "Pagbank": {},
         "Cielo": {},
@@ -43,508 +41,260 @@ def carregar_taxas():
     }
     has_error = False
     
-    # Iteração dinâmica sobre máquinas e bandeiras
     for machine, bandeiras in csv_files.items():
         for bandeira, file_path in bandeiras.items():
             try:
-                # Carregamento e processamento do CSV
                 df = pd.read_csv(file_path, sep=';', encoding='latin1')
                 df.columns = ['Parcelas', 'Taxa']
                 df['Parcelas'] = df['Parcelas'].astype(int)
                 df['Taxa'] = df['Taxa'].astype(str).str.replace('%', '', regex=False).str.replace(',', '.', regex=False).astype(float)
                 taxas_carregadas[machine][bandeira] = df.set_index('Parcelas')['Taxa'].to_dict()
             except FileNotFoundError:
-                # Log de erro para arquivo não encontrado
-                st.error(f"Erro: Arquivo '{file_path}' não encontrado. Verifique se os arquivos CSV estão disponíveis.")
+                st.error(f"Erro: Ficheiro '{file_path}' não encontrado.")
                 has_error = True
             except Exception as e:
-                # Captura de erros genéricos durante processamento
-                st.error(f"Erro ao carregar o arquivo '{file_path}': {e}")
+                st.error(f"Erro ao carregar o ficheiro '{file_path}': {e}")
                 has_error = True
     
     return taxas_carregadas if not has_error else None
 
-# Carregamento de taxas otimizado
-# Armazenamento em session_state para evitar reprocessamento
 if 'loaded_rates' not in st.session_state:
     st.session_state.loaded_rates = carregar_taxas()
 
-# Validação crítica de carregamento de taxas
 if st.session_state.loaded_rates is None:
-    st.warning("Não foi possível carregar todas as taxas. Corrija os erros de arquivo para continuar.")
+    st.warning("Não foi possível carregar todas as taxas.")
     st.stop()
 
-# Referência global de taxas para uso na aplicação
 taxas = st.session_state.loaded_rates
 
-# Função de login: Implementação de autenticação básica
+def logout():
+    st.session_state.logged_in = False
+    st.session_state.username = None
+
 def login_page():
-    # Interface centralizada de autenticação
     st.markdown("<h1 style='text-align: center;'>Acesso Restrito</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Por favor, faça login para acessar o simulador.</p>", unsafe_allow_html=True)
-    
-    login_col_left, login_col_center, login_col_right = st.columns([1, 1, 1])
-    
-    with login_col_center:
-        # Formulário de login com validação
+    login_col_l, login_col_c, login_col_r = st.columns([1, 1, 1])
+    with login_col_c:
         with st.form("login_form"):
-            username = st.text_input("Usuário")
+            username = st.text_input("Utilizador")
             password = st.text_input("Senha", type="password")
-            submit_button = st.form_submit_button("Entrar")
-            
-            # Lógica de autenticação
-            if submit_button:
+            if st.form_submit_button("Entrar"):
                 if username in USERS and USERS[username] == password:
-                    # Gerenciamento de sessão
                     st.session_state.logged_in = True
                     st.session_state.username = username
-                    st.success(f"Bem-vindo(a), {username}!")
                     st.rerun()
                 else:
-                    st.error("Usuário ou senha incorretos.")
+                    st.error("Utilizador ou senha incorretos.")
 
-# Função principal do simulador
-# Centraliza a lógica de negócio e renderização da interface
 def main_simulator_app():
-    # Injeção de estilos customizados via CSS
-    # Objetivo: melhorar experiência visual e usabilidade
+    # Estilos CSS corrigidos para Temas Light/Dark e alinhamento da tabela
     st.markdown("""
         <style>
-            /* Estilos de componentes específicos */
-            /* Foco em legibilidade e consistência visual */
-            
-            /* Ocultar sidebar por padrão */
-            .css-1d391kg {
-                display: none;
-            }
+            [data-testid="stSidebar"] { display: none; }
 
-            /* Alternativa mais específica */
-            section[data-testid="stSidebar"] > div {
-                display: none;
-            }
-
-            /* Forçar ocultação da sidebar */
-            .stSidebar {
-                display: none !important;
-            }
-
-
-            /* ESTILO PARA O LABEL DO st.metric */
+            /* Estilo das Métricas */
             div[data-testid="stMetricLabel"] p {
                 font-size: 1.1rem;
                 font-weight: bold;
-                color: #555555; /* cor cinza */
+                color: gray;
             }
-            /* ESTILO PARA O VALOR DO st.metric */
             div[data-testid="stMetricValue"] {
                 font-size: 1.5rem;
                 font-weight: bolder;
             }
-            /* --- CENTRALIZAR st.metric DENTRO DAS COLUNAS --- */
-            /* Encontra o contêiner direto do st.metric e aplica flexbox */
             div[data-testid="stMetric"] {
                 display: flex;
-                flex-direction: column; /* Organiza label e value em coluna */
-                align-items: center; /* Centraliza horizontalmente */
-                text-align: center; /* Centraliza o texto dentro do metric */
-                width: 100%; /* Garante que o metric ocupe a largura total para centralizar */
-            }
-            /* Garante que o texto do label e do valor também sejam centralizados */
-            div[data-testid="stMetric"] label p, div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-                width: 100%; /* Ocupa a largura total para centralização */
-            }
-            /* --- FORMATAÇÃO DO BOTÃO 'Simular' --- */
-            div[data-testid="stFormSubmitButton"] > button {
-                background-color: #FF8C00; /* Laranja escuro */
-                color: #FFFFFF; /* Cor do texto do botão */
-                border: none; /* Remove a borda */
-                font-weight: bold; /* Texto do botão em negrito */
-                padding: 10px 20px; /* Ajusta o padding para dar mais "corpo" ao botão */
-                border-radius: 5px; /* Bordas levemente arredondadas */
-                cursor: pointer; /* Indica que é clicável */
-                transition: background-color 0.3s ease; /* Transição suave na cor de fundo */
-                width: 100%; /* Faz o botão ocupar 100% da largura da sua coluna pai */
-            }
-            /* ESTILO AO PASSAR O MOUSE POR CIMA DO BOTÃO */
-            div[data-testid="stFormSubmitButton"] > button:hover {
-                background-color: #FFA500; /* Laranja mais claro no hover */
-                font-weight: bold;
-                color: #FFFFFF; /* Garante branco no hover */
-            }
-            /* Estilo ao CLICAR (ativo) ou FOCAR no botão */
-            div[data-testid="stFormSubmitButton"] > button:active,
-            div[data-testid="stFormSubmitButton"] > button:focus {
-                color: #FFFFFF !important; /* Força o branco no clique/foco */
-                outline: none; /* Remove a borda de foco padrão do navegador */
-                box-shadow: none; /* Remove a sombra de foco padrão do Streamlit/navegador */
-            }
-            /* Centralizar o botão dentro de sua coluna */
-            div[data-testid="stFormSubmitButton"] {
-                display: flex;
-                justify-content: center; /* Centraliza horizontalmente */
-                width: 100%; /* Garante que a div pai ocupa toda a largura disponível para centralizar */
-            }
-            /* Ajuste para o texto dentro do botão, caso Streamlit adicione wrappers */
-            div[data-testid="stFormSubmitButton"] > button > div {
-                display: flex;
-                justify-content: center;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
                 width: 100%;
             }
-            
-            /* Centralizar radio buttons horizontais */
+
+            /* Botão Simular */
+            div[data-testid="stFormSubmitButton"] > button {
+                background-color: #FF8C00;
+                color: white;
+                font-weight: bold;
+                padding: 10px 20px;
+                border-radius: 5px;
+                width: 100%;
+            }
+
+            /* Radio Buttons Centralizados */
             div[data-testid="stRadio"] > div[role="radiogroup"] {
                 display: flex;
                 justify-content: center;
-                width: 100%;
                 gap: 20px;
             }
 
-            div[data-testid="stRadio"] > div[role="radiogroup"] > label {
-                margin: 0 10px;
-            }    
-            
-            /*-------------*/
-            div[data-testid="stMarkdownContainer"] > button > div {
-                display: flex;
-                justify-content: center;
-                width: 50%;
-            }
-            
-            /* CSS para a tabela HTML */
+            /* --- ESTILO DA TABELA (Compatível com Light/Dark) --- */
             .styled-table {
                 width: 100%;
                 border-collapse: collapse;
-                color: #FAFAFA; /* Texto claro (para modo escuro) */
+                color: var(--text-color);
+                margin-bottom: 20px;
             }
             .styled-table th, .styled-table td {
-                border: 1px solid #333; /* Borda mais escura */
-                padding: 6px 10px;
-                position: relative; /* Necessário para o alinhamento dividido */
-                min-width: 100px;
+                border: 1px solid rgba(128, 128, 128, 0.3);
+                padding: 8px 12px;
+                position: relative;
+                min-width: 90px;
+                color: var(--text-color);
             }
             .styled-table th {
-                background-color: #262730; /* Fundo do cabeçalho escuro */
-                text-align: center; /* Alinha cabeçalhos ao centro por padrão */
+                background-color: rgba(128, 128, 128, 0.1);
+                text-align: center;
+                font-weight: bold;
             }
             
-            /* Alinha a coluna "Parcela" (cabeçalho e dados) ao centro */
+            /* Coluna Parcela centralizada */
             .styled-table th:first-child,
             .styled-table td:first-child {
                 text-align: center;
                 min-width: 50px;
             }
             
-            /* Células de valor (todas menos a primeira) */
-            .styled-table td:not(:first-child) {
-                text-align: right; /* Alinha o "---" à direita */
-            }
-
-            /* O "R$" */
+            /* R$ à esquerda, valor à direita - Agora acompanhando a cor do texto sem opacidade */
             .currency {
                 position: absolute;
-                left: 10px; /* Posição da esquerda */
-                top: 6px;
-                padding-right: 5px; /* Espaço entre R$ e o número */
-                color: #AAA; /* Cor mais suave para o R$ */
+                left: 10px;
+                opacity: 1.0; /* Removida a opacidade 0.6 para acompanhar a cor do texto */
+                font-size: 0.9em;
+                color: var(--text-color);
             }
-
-            /* O valor numérico */
             .amount {
                 display: block;
-                text-align: right; /* Alinha o número à direita */
+                text-align: right;
+                color: var(--text-color);
             }
-                
         </style>
         """, unsafe_allow_html=True)
     
-    # Cabeçalho e descrição da aplicação
     st.markdown("<h2 style='text-align: center;'>Simulador de Cartão</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Compare as condições de parcelamento entre as maquininhas.</p>", unsafe_allow_html=True)
-    
-    # Sidebar: Gerenciamento de sessão e identificação do usuário
-    st.sidebar.header(f"Bem-vindo(a), {st.session_state.username}!")
     st.sidebar.button("Sair", on_click=logout)
     
-    col_left_spacer, col_center_inputs, col_right_spacer = st.columns([1, 1.2, 1])
+    col_spacer_l, col_center, col_spacer_r = st.columns([1, 1.2, 1])
     
-    # Construção do formulário de entrada
-    # Layout responsivo com colunas para centralização
-    with col_center_inputs:
-        # Input de valor: Tratamento robusto de entrada
-        raw_amount = st.text_input(
-            "💰 **Valor da Venda (R$)**",
-            value="",
-            placeholder="Digite um valor (ex: 5.000,00 ou 5000)",
-            key="amount_input_text"
-        )
-        
-        # Validação e formatação do valor de entrada
+    with col_center:
+        raw_amount = st.text_input("💰 **Valor da Venda (R$)**", placeholder="Ex: 5.000,00")
         amount = None
         if raw_amount:
             try:
-                # Conversão flexível de formato monetário
-                amount = float(raw_amount.replace(',', '.'))
-                # Validações de negócio
-                if amount < 0.01:
-                    st.error("O valor da venda deve ser maior que R$ 0,00.")
-                    amount = None
-                else:
-                    # Adiciona a exibição do valor formatado logo abaixo da entrada
-                    st.info(f"Valor digitado: **R$ {amount:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
-            except ValueError:
-                # Tratamento de erro para entrada inválida
-                st.error("Por favor, digite um valor numérico válido para a venda.")
-                amount = None
-        
-        # Seleção dinâmica de bandeiras disponíveis
+                amount = float(raw_amount.replace('.', '').replace(',', '.'))
+                st.info(f"Valor: **R$ {amount:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
+            except:
+                st.error("Valor inválido.")
+
         bandeiras_disponiveis = sorted(list(set(
             list(taxas.get('Pagbank', {}).keys()) + 
             list(taxas.get('Cielo', {}).keys()) +
             list(taxas.get('Listo', {}).keys())
         )))
         
-        display_bandeiras = ['-- Selecione uma bandeira --'] + bandeiras_disponiveis
-        bandeira_selecionada = st.selectbox("💳 **Bandeira do Cartão**", display_bandeiras, key="bandeira_selector")
+        bandeira = st.selectbox("💳 **Bandeira do Cartão**", ['-- Selecione --'] + bandeiras_disponiveis)
         
-        if bandeira_selecionada == '-- Selecione uma bandeira --':
-            bandeira = "N/A"
+        # Modo de Exibição na mesma linha e centralizado
+        col_label, col_radio = st.columns([1, 2])
+        with col_label:
+            st.markdown("<p style='font-weight: bold; margin-top: 15px; text-align: right;'>Modo de Exibição</p>", unsafe_allow_html=True)
+        with col_radio:
+            display_mode = st.radio("Modo", ["Tabela", "Única"], horizontal=True, label_visibility="collapsed")
+
+        if display_mode == "Única" and bandeira != '-- Selecione --':
+            all_parcelas = sorted(list(set(
+                list(taxas.get('Listo', {}).get(bandeira, {}).keys()) + 
+                list(taxas.get('Cielo', {}).get(bandeira, {}).keys()) +
+                list(taxas.get('Pagbank', {}).get(bandeira, {}).keys())
+            )))
+            parcela_sel = st.selectbox("🔢 **Número de Parcelas**", all_parcelas)
         else:
-            bandeira = bandeira_selecionada
-        
-
-        # Centralização do modo de exibição
-        # st.markdown("<p style='text-align: center; font-weight: bold; margin-bottom: 10px;'><strong>Modo de Exibição</strong></p>", unsafe_allow_html=True)
-
-        # Coluna central maior para o radio button
-        col1, col2, col3 = st.columns([1, 2, 1])
-
-        with col2:
-            display_mode = st.radio(
-                "Modo de Exibição",
-                ["Tabela", "Única"],
-                horizontal=True,
-                key="display_mode",
-                label_visibility="collapsed",
-                width = "stretch"
-            )
-
-        # Lógica para parcelas baseada no modo selecionado
-        if bandeira != "N/A":
-            m1_parcelas = list(taxas.get('Listo', {}).get(bandeira, {}).keys())
-            m2_parcelas = list(taxas.get('Cielo', {}).get(bandeira, {}).keys())
-            m3_parcelas = list(taxas.get('Pagbank', {}).get(bandeira, {}).keys())
-            parcelas_disponiveis = sorted(list(set(m1_parcelas + m2_parcelas + m3_parcelas)))
-        else:
-            parcelas_disponiveis = []
-        
-        # Controle de parcelas baseado no modo de exibição
-        if display_mode == "Única":
-            if not parcelas_disponiveis:
-                parcelas = st.selectbox("🔢 **Número de Parcelas**", ["Selecione um valor"], disabled=True, key="installments_selector_disabled")
-            else:
-                default_parcela_value = 1 if 1 in parcelas_disponiveis else parcelas_disponiveis[0]
-                parcelas = st.selectbox(
-                    "🔢 **Número de Parcelas**",
-                    parcelas_disponiveis,
-                    index=parcelas_disponiveis.index(default_parcela_value),
-                    key="installments_selector_enabled"
-                )
-        else:  # Modo Tabela
-            parcelas = "ALL"  # Indica que queremos todas as parcelas
-        
-        st.session_state.selected_amount = amount
-        st.session_state.selected_bandeira = bandeira
-        st.session_state.selected_parcelas = parcelas
-        st.session_state.selected_display_mode = display_mode
+            parcela_sel = "ALL"
         
         with st.form("simulation_submit_form"):
             submit_simulation = st.form_submit_button("Simular")
 
-    def calculate_machine_data(valor_venda, bandeira_valor, qtd_parcela, machine_rates_data):
-        # Validações iniciais de entrada
-        if bandeira_valor == "N/A" or qtd_parcela == "N/A" or valor_venda is None or valor_venda <= 0:
-            return "N/A", "N/A", "N/A", "N/A", "N/A"
-        
-        # Recuperação segura de taxas
-        rates_for_bandeira = machine_rates_data.get(bandeira_valor, {})
-        
-        # Verificação de existência de taxa para parcelamento
-        if not rates_for_bandeira or qtd_parcela not in rates_for_bandeira:
-            return "N/A", "N/A", "N/A", "N/A", "N/A"
-        
-        # Cálculos financeiros
-        taxa = rates_for_bandeira[qtd_parcela]
-        valor_final_venda = valor_venda / (1 / (1 + taxa))
-        
-        valor_liquido_venda = valor_venda  # O valor líquido que o vendedor recebe é o valor original
-        encargos_da_transacao = valor_final_venda - valor_venda
-        parcela_cliente = valor_final_venda / qtd_parcela
-        
-        return valor_final_venda, parcela_cliente, valor_liquido_venda, encargos_da_transacao, taxa
+    def calculate_machine_data(valor, bandeira_valor, qtd, machine_rates):
+        rates = machine_rates.get(bandeira_valor, {})
+        if not rates or qtd not in rates or not valor:
+            return "N/A", "N/A", "N/A", "N/A"
+        taxa = rates[qtd]
+        # Mantendo a lógica de cálculo original do simulacao5.py
+        total = valor / (1 / (1 + taxa))
+        parcela = total / qtd
+        return total, parcela, valor, (total - valor)
 
-    def generate_comparison_table(valor_venda, bandeira, parcelas_disponiveis):
-        """Gera tabela de comparação para todas as parcelas disponíveis"""
-        if not parcelas_disponiveis or valor_venda is None or valor_venda <= 0:
-            return None
+    def generate_comparison_table(valor, band):
+        if not valor or band == '-- Selecione --': return None
         
-        # Preparar dados para a tabela
+        def format_cell(val):
+            if val == "N/A": return "<span class='amount'>---</span>"
+            txt = f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            return f"<span class='currency'>R$</span><span class='amount'>{txt}</span>"
+
+        all_p = sorted(list(set(
+            list(taxas.get('Listo', {}).get(band, {}).keys()) + 
+            list(taxas.get('Cielo', {}).get(band, {}).keys()) +
+            list(taxas.get('Pagbank', {}).get(band, {}).keys())
+        )))
+
         table_data = []
-        
-        for parcela in parcelas_disponiveis:
-            row = {"Parcela": parcela}
-            
-            # --- Função helper para criar o HTML da célula ---
-            def format_cell(value):
-                if value != "N/A":
-                    # Formata o número com vírgula
-                    formatted_value = f"{value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                    # Retorna o HTML com R$ à esquerda e valor à direita
-                    return f"<span class='currency'></span><span class='amount'>{formatted_value}</span>"
-                else:
-                    # Retorna "---" alinhado à direita
-                    return "<span class='amount'>---</span>"
-            # --------------------------------------------------
-
-            # Calcular para Listo
-            m1_total, m1_parcela, m1_liquido, m1_encargos, m1_taxa = calculate_machine_data(
-                valor_venda, bandeira, parcela, taxas.get('Listo', {})
-            )
-            row["Listo"] = format_cell(m1_parcela)
-            
-          
-            m2_total, m2_parcela, m2_liquido, m2_encargos, m2_taxa = calculate_machine_data(
-                valor_venda, bandeira, parcela, taxas.get('Cielo', {})
-            )
-            row["Cielo"] = format_cell(m2_parcela)
-
-            m3_total, m3_parcela, m3_liquido, m3_encargos, m3_taxa = calculate_machine_data(
-                valor_venda, bandeira, parcela, taxas.get('Pagbank', {})
-            )
-            row["Pagbank"] = format_cell(m3_parcela)
-            
+        for p in all_p:
+            row = {"Parcela": p}
+            _, p1, _, _ = calculate_machine_data(valor, band, p, taxas.get('Listo', {}))
+            row["Listo"] = format_cell(p1)
+            _, p2, _, _ = calculate_machine_data(valor, band, p, taxas.get('Cielo', {}))
+            row["Cielo"] = format_cell(p2)
+            _, p3, _, _ = calculate_machine_data(valor, band, p, taxas.get('Pagbank', {}))
+            row["Pagbank"] = format_cell(p3)
             table_data.append(row)
-        
         return table_data
 
-    # Lógica de submissão e processamento da simulação
-    if submit_simulation:
-        # Recuperação de dados da sessão
-        final_amount = st.session_state.selected_amount
-        final_bandeira = st.session_state.selected_bandeira
-        parcelas_finais = st.session_state.selected_parcelas
-        final_display_mode = st.session_state.selected_display_mode
+    if submit_simulation and amount and bandeira != '-- Selecione --':
+        st.markdown("<h3 style='text-align: center;'>Resultados da Simulação</h3>", unsafe_allow_html=True)
         
-        # Validação final antes de processamento
-        if final_amount is not None and final_amount > 0 and final_bandeira != "N/A":
-            st.markdown("<h3 style='text-align: center;'>Resultados da Simulação</h3>", unsafe_allow_html=True)
-            
-            if final_display_mode == "Única" and parcelas_finais != "N/A":
-                # Modo Única - Exibição original
-                col1_results, col2_results, col3_results = st.columns(3)
-                
-                # Cálculo para diferentes máquinas de cartão
-                m1_total_cliente, m1_parcela_cliente, m1_valor_liquido, m1_transaction_fees, m1_tax_rate = \
-                    calculate_machine_data(final_amount, final_bandeira, parcelas_finais, taxas.get('Listo', {}))
-                
-                # Cálculo para Listo
-                with col1_results:
-                    st.markdown("<h3 style='text-align: center; color: #FFD103; font-weight: bolder;'>Listo</h3>", unsafe_allow_html=True) 
-                    st.markdown("---")
-                    if m1_total_cliente != "N/A":
-                        st.metric(label="Valor Recebido (EOS)", value=f"R$ {m1_valor_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                        st.metric(label="Valor da Venda (Cliente)", value=f"R$ {m1_total_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                        st.metric(label="Valor da Parcela (Cliente)", value=f"R$ {m1_parcela_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                        st.metric(label="Encargos (Cliente)", value=f"R$ {m1_transaction_fees:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                    else:
-                        st.warning("Listo: Dados não disponíveis para esta bandeira/parcelamento.")
-
-                m2_total_cliente, m2_parcela_cliente, m2_valor_liquido, m2_transaction_fees, m2_tax_rate = \
-                    calculate_machine_data(final_amount, final_bandeira, parcelas_finais, taxas.get('Cielo', {}))
-                
-                # Cálculo para Cielo
-                with col2_results:
-                    st.markdown("<h3 style='text-align: center; color: #0E749C; font-weight: bolder;'>Cielo</h3>", unsafe_allow_html=True) 
-                    st.markdown("---")
-                    if m2_total_cliente != "N/A":
-                        st.metric(label="Valor Recebido (EOS)", value=f"R$ {m2_valor_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                        st.metric(label="Valor da Venda (Cliente)", value=f"R$ {m2_total_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                        st.metric(label="Valor da Parcela (Cliente)", value=f"R$ {m2_parcela_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                        st.metric(label="Encargos (Cliente)", value=f"R$ {m2_transaction_fees:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                    else:
-                        st.warning("Cielo: Dados não disponíveis para esta bandeira/parcelamento.")
-
-                # Cálculo para diferentes máquinas de cartão
-                m3_total_cliente, m3_parcela_cliente, m3_valor_liquido, m3_transaction_fees, m3_tax_rate = \
-                    calculate_machine_data(final_amount, final_bandeira, parcelas_finais, taxas.get('Pagbank', {}))
-                
-                # Cálculo para Pagbank
-                with col3_results:
-                    st.markdown("<h3 style='text-align: center; color: #F5DE3E; font-weight: bolder;'>Pagbank</h3>", unsafe_allow_html=True) 
-                    st.markdown("---")
-                    if m3_total_cliente != "N/A":
-                        st.metric(label="Valor Recebido (EOS)", value=f"R$ {m3_valor_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                        st.metric(label="Valor da Venda (Cliente)", value=f"R$ {m3_total_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                        st.metric(label="Valor da Parcela (Cliente)", value=f"R$ {m3_parcela_cliente:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                        st.metric(label="Encargos (Cliente)", value=f"R$ {m3_transaction_fees:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                    else:
-                        st.warning("Pagbank: Dados não disponíveis para esta bandeira/parcelamento.")
-            
-            elif final_display_mode == "Tabela":
-
-                if parcelas_disponiveis:
-                    table_data = generate_comparison_table(final_amount, final_bandeira, parcelas_disponiveis)
-                                
-                    if table_data:
-                        # Criar colunas para reduzir largura em 1/3 (aproximadamente 67% da largura)
-                        table_col_left, table_col_center, table_col_right = st.columns([0.325, 0.35, 0.325])
-                                    
-                        with table_col_center:
-                            # Criar DataFrame para exibição
-                            df_comparison = pd.DataFrame(table_data)
-                                        
-                            # Exibir informações gerais
-                            st.info(f"**Valor da venda:** R$ {final_amount:,.2f} | **Bandeira:** {final_bandeira}".replace(",", "X").replace(".", ",").replace("X", "."))
-                            
-                            # Converter o DataFrame para HTML com a classe CSS
-                            html_table = df_comparison.to_html(
-                                classes='styled-table', # Usa a classe CSS
-                                border=0,
-                                index=False,     # Não mostra o índice 0,1,2... do pandas
-                                escape=False     # IMPORTANTE: Renderiza o HTML (<span>)
-                            )
-                            
-                            # Exibir o HTML da tabela usando st.markdown
-                            st.markdown(html_table, unsafe_allow_html=True)
-                                        
-                            # Adicionar observações
-                            st.markdown("<br>", unsafe_allow_html=True) # Adiciona um espaço
-                            st.markdown("<h5 style='text-align: center;> **Observações:**</h5>", unsafe_allow_html=True)
-                            st.markdown("<p style='text-align: left;'> • Os valores mostrados são o que o <b>cliente pagará</b> por parcela </p>", unsafe_allow_html=True)
-                            st.markdown("<p style='text-align: left;'> • Campos com '---' indicam que a opção não está disponível para esta bandeira </p>", unsafe_allow_html=True)
-																																 
+        if display_mode == "Única":
+            c1, c2, c3 = st.columns(3)
+            # Listo
+            t1, p1, l1, f1 = calculate_machine_data(amount, bandeira, parcela_sel, taxas.get('Listo', {}))
+            with c1:
+                st.markdown("<h3 style='text-align: center; color: #FFD103;'>Listo</h3>", unsafe_allow_html=True)
+                if t1 != "N/A":
+                    st.metric("EOS recebe", f"R$ {l1:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.metric("Cliente paga (total)", f"R$ {t1:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.metric("Parcela", f"R$ {p1:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                else: st.warning("Dados indisponíveis")
+            # Cielo
+            t2, p2, l2, f2 = calculate_machine_data(amount, bandeira, parcela_sel, taxas.get('Cielo', {}))
+            with c2:
+                st.markdown("<h3 style='text-align: center; color: #0E749C;'>Cielo</h3>", unsafe_allow_html=True)
+                if t2 != "N/A":
+                    st.metric("EOS recebe", f"R$ {l2:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.metric("Cliente paga (total)", f"R$ {t2:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.metric("Parcela", f"R$ {p2:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                else: st.warning("Dados indisponíveis")
+            # Pagbank
+            t3, p3, l3, f3 = calculate_machine_data(amount, bandeira, parcela_sel, taxas.get('Pagbank', {}))
+            with c3:
+                st.markdown("<h3 style='text-align: center; color: #F5DE3E;'>Pagbank</h3>", unsafe_allow_html=True)
+                if t3 != "N/A":
+                    st.metric("EOS recebe", f"R$ {l3:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.metric("Cliente paga (total)", f"R$ {t3:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    st.metric("Parcela", f"R$ {p3:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                else: st.warning("Dados indisponíveis")
         else:
-            # Criar colunas para centralizar e reduzir largura do info
-            warning_col_left, warning_col_center, warning_col_right = st.columns([0.25, 0.5, 0.25])
-            with warning_col_center:
-                st.warning("Por favor, preencha todos os campos corretamente (Valor e Bandeira) antes de simular.")
+            table_data = generate_comparison_table(amount, bandeira)
+            if table_data:
+                # Ajuste de colunas para centralizar e estreitar a tabela (40% da largura total)
+                col_l, col_m, col_r = st.columns([0.3, 0.4, 0.3])
+                with col_m:
+                    df = pd.DataFrame(table_data)
+                    html_table = df.to_html(classes='styled-table', index=False, escape=False, border=0)
+                    st.markdown(html_table, unsafe_allow_html=True)
+                    st.markdown("<p style='font-size: 0.8em; opacity: 0.7;'>• Valores que o cliente pagará por parcela.<br>• '---' indica opção indisponível.</p>", unsafe_allow_html=True)
 
-    
     st.markdown("---")
-    st.markdown("<p style='text-align: right;'>by Douglas Corrêa</p>", unsafe_allow_html=True)
-    
+    st.markdown("<p style='text-align: right; font-size: 0.8em;'>by Douglas Corrêa</p>", unsafe_allow_html=True)
 
-# Função de logout: Gerenciamento seguro de sessão
-def logout():
-    st.session_state.logged_in = False
-    st.session_state.username = None
-
-# Controlador de fluxo de autenticação
-# Determina state da aplicação baseado em autenticação
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-
-# Renderização condicional
-if st.session_state.logged_in:
-    main_simulator_app()
-else:
-    login_page()
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if st.session_state.logged_in: main_simulator_app()
+else: login_page()
