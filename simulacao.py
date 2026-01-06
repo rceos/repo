@@ -127,18 +127,19 @@ def main_simulator_app():
                 gap: 20px;
             }
 
-            /* --- ESTILO DA TABELA (Compatível com Light/Dark) --- */
+            /* --- ESTILO DA TABELA COMPACTA (Compatível com Light/Dark) --- */
             .styled-table {
                 width: 100%;
                 border-collapse: collapse;
                 color: var(--text-color);
                 margin-bottom: 20px;
+                font-size: 0.95em; /* Ligeiramente menor para ser compacta */
             }
             .styled-table th, .styled-table td {
                 border: 1px solid rgba(128, 128, 128, 0.3);
-                padding: 8px 12px;
+                padding: 4px 10px; /* Reduzido o padding vertical de 8px para 4px */
                 position: relative;
-                min-width: 90px;
+                min-width: 80px; /* Reduzido de 90px para 80px */
                 color: var(--text-color);
             }
             .styled-table th {
@@ -151,15 +152,15 @@ def main_simulator_app():
             .styled-table th:first-child,
             .styled-table td:first-child {
                 text-align: center;
-                min-width: 50px;
+                min-width: 40px; /* Mais estreita */
             }
             
-            /* R$ à esquerda, valor à direita - Agora acompanhando a cor do texto sem opacidade */
+            /* R$ à esquerda, valor à direita */
             .currency {
                 position: absolute;
-                left: 10px;
-                opacity: 1.0; /* Removida a opacidade 0.6 para acompanhar a cor do texto */
-                font-size: 0.9em;
+                left: 8px;
+                opacity: 1.0;
+                font-size: 0.85em;
                 color: var(--text-color);
             }
             .amount {
@@ -287,6 +288,10 @@ def main_simulator_app():
                 # Ajuste de colunas para centralizar e estreitar a tabela (40% da largura total)
                 col_l, col_m, col_r = st.columns([0.3, 0.4, 0.3])
                 with col_m:
+                    # Restaurado o título informativo acima da tabela
+                    formatted_val = f"{amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    st.info(f"**Valor da venda:** R$ {formatted_val} | **Bandeira:** {bandeira}")
+                    
                     df = pd.DataFrame(table_data)
                     html_table = df.to_html(classes='styled-table', index=False, escape=False, border=0)
                     st.markdown(html_table, unsafe_allow_html=True)
