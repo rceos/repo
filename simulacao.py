@@ -219,7 +219,7 @@ def main_simulator_app():
             return "N/A", "N/A", "N/A", "N/A"
         taxa = rates[qtd]
         # Mantendo a lógica de cálculo original do simulacao5.py
-        total = valor / (1 - taxa)
+        total = valor * (1 + taxa)
         parcela = total / qtd
         return total, parcela, valor, (total - valor)
 
